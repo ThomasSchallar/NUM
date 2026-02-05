@@ -1,1 +1,1 @@
-look at MiniProject2.ipynb
+look into MiniProject2.ipynb
