@@ -9,6 +9,8 @@ from matplotlib.animation import FuncAnimation
 g= 9.81 # m/s²
 
 
+# calculate time and landing coordinates 
+#
 def analytically( H, vx, vy, vz ):
   # z(t)= H + vz t - g/2 t² = 0    ballistic trajectory
   #       c   bt     at²           a,b,c for Mitternachtsformel
@@ -18,14 +20,14 @@ def analytically( H, vx, vy, vz ):
   wurzelterm= b * b - 4 * a * c
   t1= ( -b + np.sqrt( wurzelterm ) ) / ( 2 * a )
   t2= ( -b - np.sqrt( wurzelterm ) ) / ( 2 * a )
-  t= max( t1, t2 )                 # choose longer trajectory
+  t= max( t1, t2 )                 # choose the longer trajectory
 
   T= np.linspace( 0, t, 300 )      # 300t values
   X= T * vx                        # constant motion in
   Y= T * vy                        # relation to the floor
   Z= H + T * vz - T*T * g / 2.0    # ballistic trajectory
 
-  return X, Y, Z
+  return T, X, Y, Z
 
 
 class BallSimulator:
@@ -60,9 +62,9 @@ class BallSimulator:
 
     fig= Figure( figsize=(6, 5) )
     self.ax = fig.add_subplot( 111, projection='3d' )
-    self.ax.set_xlabel( 'x' )
-    self.ax.set_ylabel( 'y' )
-    self.ax.set_zlabel( 'z' )
+    self.ax.set_xlabel( 'x [m]' )
+    self.ax.set_ylabel( 'y [m]' )
+    self.ax.set_zlabel( 'z [m]' )
 
     self.line, = self.ax.plot([], [], [], lw=2)
     self.point, = self.ax.plot([], [], [], 'ro')
@@ -74,6 +76,8 @@ class BallSimulator:
 
 
   def run( self ):
+    # read parameters from UI panel
+    #
     try:
         H=  float( self.eH.get() )
         vx= float( self.eX.get() )
@@ -83,12 +87,26 @@ class BallSimulator:
         self.info.config( text='invalid input' )
         return
 
-    X, Y, Z= analytically( H, vx, vy, vz )
+    # get time and landing coordinates
+    #
+    T, X, Y, Z= analytically( H, vx, vy, vz )
 
+    # calculate timing
+    #
+    skip = 10
+    frames = list(range(0, len(X), skip))
+    if frames[-1] != len(X) - 1:
+      frames.append(len(X) - 1)
+
+    dt = T[1] - T[0]              # Sekunden pro Simulationsschritt
+    interval_ms = dt * skip * 1000
+
+    # plot trajectory
+    #
     self.ax.cla()
-    self.ax.set_xlabel( 'x' )
-    self.ax.set_ylabel( 'y' )
-    self.ax.set_zlabel( 'z' )
+    self.ax.set_xlabel( 'x [m]' )
+    self.ax.set_ylabel( 'y [m]' )
+    self.ax.set_zlabel( 'z [m]' )
 
     self.ax.plot( X, Y, Z, alpha=0.3 )
     self.ax.scatter( X[-1], Y[-1], Z[-1], color='green', s=50 )
@@ -97,10 +115,11 @@ class BallSimulator:
     self.point, = self.ax.plot( [], [], [], color='red', marker='o' )
 
     self.info.config(
-      text= f'landing point: {X[-1]:.2f}/{Y[-1]:.2f}/{Z[-1]:.2f} m'
+      text= f'flying time: {T[-1]:.2f}s,\nlanding point: {X[-1]:.2f}/{Y[-1]:.2f}/{Z[-1]:.2f}m'
     )
 
-
+    # update animation (step)
+    #
     def update( i ):
         self.line.set_data( X[:i], Y[:i] )
         self.line.set_3d_properties( Z[:i] )
@@ -116,14 +135,15 @@ class BallSimulator:
       self.canvas.figure,
       update,
       frames=frames,
-      interval=10,
+      interval=interval_ms,
       blit=True,
       repeat=False
     )
 
     self.canvas.draw()
 
-
+# display UI panel and run UI loop
+#
 root= tk.Tk()
 root.title( 'MiniProject 2, simple version' )
 BallSimulator( root )
